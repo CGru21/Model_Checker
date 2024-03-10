@@ -23,6 +23,7 @@ class mcGUI(object):
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Import", command=self.import_kts)
         filemenu.add_command(label="Save")
+        filemenu.add_command(label="Load")
         menubar.add_cascade(label="File", menu=filemenu)
 
         helpmenu = tk.Menu(menubar, tearoff=0)
@@ -33,7 +34,7 @@ class mcGUI(object):
         self.states = []
         self.transitions = []
         self.kts = MT.KTS_model()
-        self.machine = MT.KTS(model=self.kts, show_state_attributes=True)
+        self.machine = MT.KTS(model=self.kts, title="", show_state_attributes=True)
 
         # frame for atomic propositions
         self.create_ap_frame()
@@ -50,10 +51,10 @@ class mcGUI(object):
         self.root.mainloop()
 
     def create_ap_frame(self):
-        self.ap_frame = tk.Frame(self.root, width=400, height=200)
+        self.ap_frame = tk.Frame(self.root, width=450, height=250)
         self.ap_frame.grid_propagate(0)
 
-        rows_count = list(range(3+3)) # initially 3 empty rows of the AP table are loaded
+        rows_count = list(range(4+3)) # initially 3 empty rows of the AP table are loaded
 
         self.ap_frame.columnconfigure(index=[0,1],weight=1)
         self.ap_frame.rowconfigure(index=rows_count,weight=2)
@@ -75,65 +76,74 @@ class mcGUI(object):
         self.state_labels = []
         state_count = 0
 
-        for s in range(3): # see update_ap_frame()
+        for s in range(4): # see update_ap_frame()
             state_label = tk.Label(self.ap_frame, text="", borderwidth=1, relief="solid")
             state_label.grid(column=0,row=3+state_count,sticky="nsew")
 
-            #ap = tk.Label(self.ap_frame, text="", borderwidth=1, relief="solid")
-            #ap.grid(column=1,row=3+state_count,sticky="nsew")
             self.ap_labels.append(tk.Label(self.ap_frame, text="", borderwidth=1, relief="solid"))
             self.ap_labels[state_count].grid(column=1,row=3+state_count,sticky="nsew")
 
             state_count += 1
 
     def create_ctl_frame(self):
-        self.ctl_frame = tk.Frame(self.root, width=400, height=200)
+        self.ctl_frame = tk.Frame(self.root, width=450, height=250)
         self.ctl_frame.grid_propagate(0)
 
-        self.ctl_frame.columnconfigure(index=[0,1],weight=1)
+        self.ctl_frame.columnconfigure(index=[0,1,2],weight=1)
+        self.ctl_frame.columnconfigure(index=[0,1],minsize=166)
         self.ctl_frame.rowconfigure(index=[0,1,2,3,4],weight=2)
 
         ap_label = tk.Label(self.ctl_frame, text="Manage CTL-Formulas", borderwidth=2, relief="groove")
-        ap_label.grid(column=0,row=0,columnspan=2,sticky="nsew")
+        ap_label.grid(column=0,row=0,columnspan=3,sticky="nsew")
 
         editCTL_button = tk.Button(master=self.ctl_frame, text="Edit")
         editCTL_button.grid(column=0,row=1,sticky="nw")
 
-        check_button = tk.Button(master=self.ctl_frame, text="Check")
-        check_button.grid(column=1,row=1,sticky="ne")
+        self.description_button = tk.Button(master=self.ctl_frame, text="Description", command=self.showDescription)
+        self.description_button.grid(column=0,row=1,sticky="ne")
+
+        check_button = tk.Button(master=self.ctl_frame, text="Check", command=self.checkModel)
+        check_button.grid(column=2,row=1,sticky="ne")
+
+        self.ctl1bg = tk.Label(master=self.ctl_frame, height=2) # set background for checkboxes, colored when checked
+        self.ctl1bg.grid(column=0,row=2,columnspan=3,sticky="ew")
+        self.ctl2bg = tk.Label(master=self.ctl_frame, height=2)
+        self.ctl2bg.grid(column=0,row=3,columnspan=3,sticky="ew")
+        self.ctl3bg = tk.Label(master=self.ctl_frame, height=2)
+        self.ctl3bg.grid(column=0,row=4,columnspan=3,sticky="ew")
 
         f1 = tk.IntVar()
-        ctl1 = tk.Checkbutton(master=self.ctl_frame, text="AF(loggedout)", variable=f1)
-        ctl1.grid(column=0,row=2,sticky="w")
+        self.ctl1 = tk.Checkbutton(master=self.ctl_frame, text="AF(transferred)", variable=f1)
+        self.ctl1.grid(column=0,row=2,columnspan=2,sticky="w")
 
         f2 = tk.IntVar()
-        ctl2 = tk.Checkbutton(master=self.ctl_frame, text="EF(loggedin)", variable=f2)
-        ctl2.grid(column=0,row=3,sticky="w")
+        self.ctl2 = tk.Checkbutton(master=self.ctl_frame, text="AG(l_in)", variable=f2)
+        self.ctl2.grid(column=0,row=3,columnspan=2,sticky="w")
 
         f3 = tk.IntVar()
-        ctl3 = tk.Checkbutton(master=self.ctl_frame, text="EU(loggedin,loggedout)", variable=f3)
-        ctl3.grid(column=0,row=4,sticky="w")
+        self.ctl3 = tk.Checkbutton(master=self.ctl_frame, text="EU(l_in,l_out)", variable=f3)
+        self.ctl3.grid(column=0,row=4,columnspan=2,sticky="w")
 
-        s1 = tk.Label(self.ctl_frame, text="[All]")
-        s1.grid(column=1,row=2,sticky="w")
+        self.s1 = tk.Label(self.ctl_frame, text="[All]")
+        self.s1.grid(column=2,row=2,sticky="w")
 
-        s2 = tk.Label(self.ctl_frame, text="[All]")
-        s2.grid(column=1,row=3,sticky="w")
+        self.s2 = tk.Label(self.ctl_frame, text="[Login]")
+        self.s2.grid(column=2,row=3,sticky="w")
 
-        s3 = tk.Label(self.ctl_frame, text="[Produkte]")
-        s3.grid(column=1,row=4,sticky="w")
+        self.s3 = tk.Label(self.ctl_frame, text="[Finance Overview]")
+        self.s3.grid(column=2,row=4,sticky="w")
 
     def create_graph_frame(self):
-        self.graph_frame = tk.Frame(self.root, height=400, width=1000)
+        self.graph_frame = tk.Frame(self.root, height=500, width=1000)
         self.graph_frame.grid_propagate(0)
 
         self.graph_frame.columnconfigure(index=[0],weight=1)
         self.graph_frame.rowconfigure(index=[0,1],weight=2)
 
-        graph_label = tk.Label(self.graph_frame, text="Kripke Transition System", borderwidth=2, relief="groove")
+        graph_label = tk.Label(self.graph_frame, text="Model", borderwidth=2, relief="groove")
         graph_label.grid(column=0,row=0,sticky="nsew")
 
-        self.graph_display = tk.Label(self.graph_frame, text="no diagram loaded", height=22)
+        self.graph_display = tk.Label(self.graph_frame, text="no diagram loaded", height=29)
         self.graph_display.grid(column=0,row=1,sticky="nsew")
 
 
@@ -143,8 +153,8 @@ class mcGUI(object):
         self.states, self.transitions = read_xml(diagramPath)
 
         self.kts = MT.KTS_model()
-        self.machine = MT.KTS(model=self.kts, initial=list(self.states[0].values())[0], states=self.states, transitions=self.transitions, show_state_attributes=True)
-        self.kts.get_graph().draw('kts.png', prog='dot')
+        self.machine = MT.KTS(model=self.kts, title="", initial=list(self.states[0].values())[0], states=self.states, transitions=self.transitions, show_state_attributes=True)
+        self.machine.generate_image(self.kts)
         self.update_image()
         self.clear_aplabels() # clear any existing labels of the table
         self.clear_statelabels()
@@ -152,8 +162,11 @@ class mcGUI(object):
         self.update_ap_frame()
         
     def update_image(self):
-        self.graph_image = ImageTk.PhotoImage(Image.open("kts.png"))
-        self.graph_display = tk.Label(self.graph_frame, image=self.graph_image, height=350)
+        img = Image.open("kts.png")
+        width, height = img.size
+        resized_img = img.resize((950,int(height*(950/width))))
+        self.graph_image = ImageTk.PhotoImage(resized_img)
+        self.graph_display = tk.Label(self.graph_frame, image=self.graph_image, height=250)
         self.graph_display.image = self.graph_image
         self.graph_display.grid(column=0,row=1,sticky="nsew")
 
@@ -167,15 +180,11 @@ class mcGUI(object):
             current_name = s[0]
             self.state_labels.append(tk.Label(self.ap_frame, text=f"{current_name}", borderwidth=1, relief="solid"))
             self.state_labels[state_count].grid(column=0,row=3+state_count,sticky="nsew")
-            #state_label = tk.Label(self.ap_frame, text=f"{current_name}", borderwidth=1, relief="solid")
-            #state_label.grid(column=0,row=3+state_count,sticky="nsew")
 
             current_ap = s[1].tags
             ap_tags = ', '.join(current_ap)
             self.ap_labels.append(tk.Label(self.ap_frame, text=ap_tags, borderwidth=1, relief="solid"))
             self.ap_labels[state_count].grid(column=1,row=3+state_count,sticky="nsew")
-            #ap = tk.Label(self.ap_frame, text=ap_tags, borderwidth=1, relief="solid")
-            #ap.grid(column=1,row=3+state_count,sticky="nsew")
 
             state_count += 1
 
@@ -207,7 +216,6 @@ class mcGUI(object):
         self.clear_aplabels()
 
         for s in self.machine.states.items():
-            #print(s[1].tags)
             ap_tags = ""
 
             if s[1].tags != []:
@@ -217,9 +225,6 @@ class mcGUI(object):
             self.ap_entrys.append(tk.Entry(self.ap_frame, borderwidth=1, relief="solid"))
             self.ap_entrys[state_count].insert(10,ap_tags)
             self.ap_entrys[state_count].grid(column=1,row=3+state_count,sticky="nsew")
-            #ap_entry = tk.Entry(self.ap_frame, borderwidth=1, relief="solid")
-            #ap_entry.insert(10,ap_tags)
-            #ap_entry.grid(column=1,row=3+state_count,sticky="nsew")
 
             state_count += 1
 
@@ -243,10 +248,50 @@ class mcGUI(object):
 
         self.clear_apentrys()
         self.kts = MT.KTS_model()
-        self.machine = MT.KTS(model=self.kts, initial=list(self.states[0].values())[0], states=self.states, transitions=self.transitions, show_state_attributes=True)
-        self.kts.get_graph().draw('kts.png', prog='dot')
+        self.machine = MT.KTS(model=self.kts, title="", initial=list(self.states[0].values())[0], states=self.states, transitions=self.transitions, show_state_attributes=True)
+        self.machine.generate_image(self.kts)
         self.update_image()
 
+    def showDescription(self):
+        self.description_button.destroy()
+        self.formula_button = tk.Button(master=self.ctl_frame, text="Formula", command=self.showFormula)
+        self.formula_button.grid(column=0,row=1,sticky="ne")
+
+        self.ctl1.config(text="eventually money must have been transferred")
+        self.ctl2.config(text="the user must always be logged in")
+        self.ctl3.config(text="the user must be logged in until they are logged out")
+
+    def showFormula(self):
+        self.formula_button.destroy()
+        self.description_button = tk.Button(master=self.ctl_frame, text="Description", command=self.showDescription)
+        self.description_button.grid(column=0,row=1,sticky="ne")
+
+        self.ctl1.config(text="AF(transferred)")
+        self.ctl2.config(text="AG(l_in)")
+        self.ctl3.config(text="EU(l_in,l_out)")
+
+    def checkModel(self):
+        # to visualize what checking could look like, actual model checking algorithm not yet implemented
+        for s in self.states:
+            if s["name"] != "Login":
+                self.machine.model_graphs[id(self.kts)].set_node_style(s["name"], 'sat')
+            else:
+                self.machine.model_graphs[id(self.kts)].set_node_style(s["name"], 'unsat')
+
+        self.machine.generate_image(self.kts)
+        self.update_image()
+
+        self.ctl1.config(bg="lightgreen")
+        self.ctl2.config(bg="darksalmon")
+        self.ctl3.config(bg="lightgreen")
+
+        self.s1.config(bg="lightgreen")
+        self.s2.config(bg="darksalmon")
+        self.s3.config(bg="lightgreen")
+
+        self.ctl1bg.config(bg="lightgreen")
+        self.ctl2bg.config(bg="darksalmon")
+        self.ctl3bg.config(bg="lightgreen")
 
 
 if __name__ == "__main__":
